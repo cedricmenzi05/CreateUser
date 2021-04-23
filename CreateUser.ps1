@@ -85,15 +85,25 @@ function createScheduledTask {
     }
     
     $TaskAction = New-ScheduledTaskAction -Execute "C:\CreateUser\ConfigureUser.ps1"
-    $TaskPrincipal = New-ScheduledTaskPrincipal -UserId $adminUsers[0] -LogonType ServiceAccount -RunLevel Highest
+    $TaskPrincipal = New-ScheduledTaskPrincipal -UserId $UserName -LogonType ServiceAccount -RunLevel Highest
     $TaskTrigger = New-ScheduledTaskTrigger -AtLogOn
     $Task = New-ScheduledTask -Action $TaskAction -Principal $TaskPrincipal -Trigger $TaskTrigger 
-    Register-ScheduledTask -Force -InputObject $Task
+    Register-ScheduledTask -Force -InputObject $Task | Out-Null
 }
 
+# Creates the SID File fot Configuration Purposes
 function createConfigFile {
     New-Item -Name "config" -Path "C:\CreateUser" -ItemType "directory" | Out-Null
-    $SIDFile = $global:userSID | Out-File -FilePath "C:\CreateUser\config\$global:userName.txt"
+    $SIDFile = $global:userSID | Out-File -FilePath "C:\CreateUser\config\SID.txt"
+}
+
+# Gives the created User Admin rights, to execute the 2nd Script
+function setAdminRights {
+    if ([CultureInfo]::InstalledUICulture.Name -eq "de-DE") {
+        Add-LocalGroupMember -Group "Administratoren" -Member $userSID
+    } else {
+        Add-LocalGroupMember -Group "Administrators" -Member $userSID
+    }
 }
 
 # Reboots Windows
@@ -107,7 +117,8 @@ function endCreation {
     
 }
 
-
+#--------Excecution--------#
+getLocalGroups
 readArguments
 createUser
 setGroups
@@ -115,4 +126,6 @@ getUserSID
 downloadFiles
 createScheduledTask
 createConfigFile
+setAdminRights
 endCreation
+#--------------------------#
