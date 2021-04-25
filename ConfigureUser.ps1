@@ -33,6 +33,9 @@ function removeConfigFile {
 
 # Gives the created User Admin rights, to execute the 2nd Script
 function removeAdminRights {
+    #-------------- Unregisters the Scheduled Task --------------#
+    Unregister-ScheduledTask -TaskName "ConfigureUser"
+    #------------------------------------------------------------#
     if ([CultureInfo]::InstalledUICulture.Name -eq "de-DE") {
         Remove-LocalGroupMember -Group "Administratoren" -Member $userSID
     } else {
@@ -41,6 +44,7 @@ function removeAdminRights {
 }
 
 function endConfiguration {
+    
     $read = Read-Host "Do you want to restart the PC? The Configuration Script will be started automatically. [y/n]"
     if ($read -eq "y") {
         Restart-Computer -Force 

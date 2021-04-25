@@ -20,6 +20,7 @@ function getLocalGroups {
 
 #Reads in all the needed Arguments
 function readArguments {
+    [string]$global:configurationUsername = Read-Host "User which runs this script:"
     [string]$global:UserName = Read-Host "Username"
     [string]$global:fullName = Read-Host "Full name"
     [string]$global:UserDescription = Read-Host "Description"
@@ -43,8 +44,8 @@ function setGroups {
     $selectedGroupsSize = $selectedGroups.Count
     $selectedGroupsArray = $selectedGroups.Split(" ")
     if ($selectedGroupsSite -le 1) {
-        Add-LocalGroupMember -Group $LocalGroups[$selectedGroupsArray] -Member $UserName
-        Write-Host "Added User $userName to " $LocalGroups[$selectedGroupsArray] "..."
+        Add-LocalGroupMember -Group $LocalGroups[$selectedGroupsArray[0]] -Member $UserName
+        Write-Host "Added User $userName to " $LocalGroups[$selectedGroupsArray[0]] "..."
     } else {
         for ($i = 0; $i -le $selectedGroupsSize; $i++) {
             Add-LocalGroupMember -Group $LocalGroups[$selectedGroupsArray[$i]] -Member $UserName
@@ -61,7 +62,7 @@ function getUserSID {
 #Downloading needed files
 function downloadFiles {
     #Creates Folder for Download, checks if already created
-    if (Get-Item -Path "C:\CreateUser") {
+    if (Test-Path -Path "C:\CreateUser") {
         Write-Host "Download Folder already exists"
     } else {
         New-Item -Name "CreateUser" -Path "C:" -ItemType "directory" | Out-Null
@@ -73,25 +74,20 @@ function downloadFiles {
     $WebClient.downloadFile("https://i.imgur.com/57Onk4E.jpg", "C:\CreateUser\dl\wallpaper.jpg")
 
     # Copies the "ConfigureUser.ps1" script
-    Move-Item -Path "ConfigureUser.ps1" -Destination "C:\CreateUser"
+    Copy-Item -Path "C:\Users\$configurationUsername\Desktop\ConfigureUser.ps1" -Destination "C:\CreateUser" -Force
     
 }
 # Creates the scheduled task - starts at login
 function createScheduledTask {
-    if ([CultureInfo]::InstalledUICulture.Name -eq "de-DE") {
-        $adminUsers = Get-LocalGroupMember -Group "Administratoren"  
-    } else {
-        $adminUsers = Get-LocalGroupMember -Group "Administrators"
-    }
-    
-    $TaskAction = New-ScheduledTaskAction -Execute "C:\CreateUser\ConfigureUser.ps1"
+    [string]$TaskArgs = "-noprofile -command &{ Start-Process powershell.exe -ArgumentList '-noprofile -file C:\CreateUser\ConfigureUser.ps1' -verb RunAs}"
+    $TaskAction = New-ScheduledTaskAction -Execute "powershell.exe" -Argument $TaskArgs
     $TaskPrincipal = New-ScheduledTaskPrincipal -UserId $UserName -LogonType ServiceAccount -RunLevel Highest
     $TaskTrigger = New-ScheduledTaskTrigger -AtLogOn
     $Task = New-ScheduledTask -Action $TaskAction -Principal $TaskPrincipal -Trigger $TaskTrigger 
-    Register-ScheduledTask -Force -InputObject $Task | Out-Null
+    Register-ScheduledTask -Force -InputObject $Task -TaskName "ConfigureUser" | Out-Null
 }
 
-# Creates the SID File fot Configuration Purposes
+# Creates the SID File for Configuration Purposes
 function createConfigFile {
     New-Item -Name "config" -Path "C:\CreateUser" -ItemType "directory" | Out-Null
     $SIDFile = $global:userSID | Out-File -FilePath "C:\CreateUser\config\SID.txt"
